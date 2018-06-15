@@ -1,0 +1,34 @@
+#!/bin/sh
+
+# PLUGIN: CHECK IMPROPER EJECT
+# AUTHOR: DAN MONGE @MACITPROS
+# DATE:   JUNE/24/2017
+
+# Custom plugin for Watchman Monitoring to alert when a disk has been improperly ejected
+# If a disk is ejected more then 4 times improperly in 1 hour a one-time alert will be sent.  
+
+# Additional information I'd like to gather for plug-in. System preference pane option
+# to adjust the number of times before an alert is sent.
+
+# CHECKS FOR "DISK LOGGER" GENERATED FROM FSEVENTSD PROCESS
+EJECTTYPE="$(sudo log show --style syslog --predicate 'process == "fseventsd" && eventMessage CONTAINS[c] "disk logger"' --info --last 1h)"
+
+# CHECKS FOR NUMBER OF TIMES THE IMPROPER UNMOUNT OCCURED
+EJECTCOUNT="$(echo "${EJECTTYPE}" | grep disk | cat -n | tail -n 1 | cut -f1)"
+
+# CALCULATES THE CORRECT NUMBER OF IMPROPER EJECTS
+EJECTNUM=$((EJECTCOUNT / 2))
+
+# GETS THE DISK NAME
+EJECTDISK="$(echo "${EJECTTYPE}" | sed 's/^.*mount point//' | head -2 | tail -1)"
+
+# NO IMPROPER EJECTS FOUND
+if [[ $EJECTNUM = 0 ]]
+then
+echo "No improperly ejected disks to report"
+exit 0
+else
+echo "Improper disk ejects found. This disk was removed improperly $EJECTNUM time(s):\n${EJECTDISK}\n"  | sed 's/\.fseventsd//g'
+# CHANGE EXIT TO 200 WHEN READY
+exit 20
+fi
